@@ -48,4 +48,9 @@ fun main() {
 // presentation plan:
 // - write code to support markdown image format ![]()
 // - demo it live
+// - add libpng (another branch) to generate preview and resize the image
+// - use libpng to set transparent color ;)
+// - add Kotlin-Fracrtals common code to generate fractals PNG urls
+
+
 
