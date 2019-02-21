@@ -42,6 +42,8 @@ fun main() {
 
   board.declareTypes(listOf(NSPasteboardTypeString), owner = null)
   board.setString(result, forType = NSPasteboardTypeString)
+
+  return exit(0)
 }
 
 
@@ -50,7 +52,7 @@ fun main() {
 // - demo it live
 // - add libpng (another branch) to generate preview and resize the image
 // - use libpng to set transparent color ;)
-// - add Kotlin-Fracrtals common code to generate fractals PNG urls
+// - add kotlin-fractals common code to generate fractals PNG urls
 
 
 
