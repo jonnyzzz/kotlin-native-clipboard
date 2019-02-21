@@ -38,8 +38,7 @@ fun main() {
   val base64Data = data.base64EncodedStringWithOptions(0UL)
   val result = "data:application/png;base64,$base64Data"
 
-  println("Encoded PNG:")
-  println(result)
+  println("Encoded PNG: ${result.take(40)}...")
 
   board.declareTypes(listOf(NSPasteboardTypeString), owner = null)
   board.setString(result, forType = NSPasteboardTypeString)
