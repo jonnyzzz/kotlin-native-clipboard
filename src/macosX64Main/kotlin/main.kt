@@ -43,3 +43,9 @@ fun main() {
   board.declareTypes(listOf(NSPasteboardTypeString), owner = null)
   board.setString(result, forType = NSPasteboardTypeString)
 }
+
+
+// presentation plan:
+// - write code to support markdown image format ![]()
+// - demo it live
+
