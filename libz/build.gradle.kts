@@ -29,10 +29,20 @@ val unpack = tasks.create<Sync>("libz_unpack") {
   }
 }
 
+fun Exec.setupZLibEnvironment() {
+  doFirst {
+    infix fun String.env(value: Any) {
+      environment(this, value.toString())
+    }
+
+    "CPPFLAGS" env "-mmacosx-version-min=10.11"
+  }
+}
 
 val configure = tasks.create<Exec>("libz_configure") {
   dependsOn(unpack)
 
+  setupZLibEnvironment()
   commandLine("/bin/sh", "-c", "./configure --static --prefix=$libzPrefix --archs=\"-arch x86_64\"")
   workingDir(libzUnpacked)
 }
@@ -40,6 +50,7 @@ val configure = tasks.create<Exec>("libz_configure") {
 val make = tasks.create<Exec>("libz_make") {
   dependsOn(configure)
 
+  setupZLibEnvironment()
   commandLine("/bin/sh", "-c", "make install prefix=$libzPrefix")
   workingDir(libzUnpacked)
 }
