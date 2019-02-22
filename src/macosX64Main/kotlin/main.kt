@@ -46,7 +46,9 @@ fun main() {
     ByteArray(data.length.toInt()) { array[it] }
   }
 
-  readPng(kData)
+  val image = readPng(kData)
+
+  println("Image:\n${imageToASCII(image)}\n\n")
 
   val base64Data = data.base64EncodedStringWithOptions(0UL)
   val result = "data:application/png;base64,$base64Data"

@@ -2,14 +2,20 @@ package org.jonnyzzz.kotlin.mpp.clipboard
 
 import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.asStableRef
+import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.set
 import kotlinx.cinterop.staticCFunction
 import kotlinx.cinterop.value
+import org.jonnyzzz.png.PNG_COLOR_TYPE_RGB
+import org.jonnyzzz.png.PNG_COLOR_TYPE_RGBA
 import org.jonnyzzz.png.PNG_LIBPNG_VER_STRING
+import org.jonnyzzz.png.png_byteVar
 import org.jonnyzzz.png.png_bytep
+import org.jonnyzzz.png.png_bytepVar
 import org.jonnyzzz.png.png_create_info_struct
 import org.jonnyzzz.png.png_create_read_struct
 import org.jonnyzzz.png.png_destroy_read_struct
@@ -18,6 +24,8 @@ import org.jonnyzzz.png.png_get_color_type
 import org.jonnyzzz.png.png_get_image_height
 import org.jonnyzzz.png.png_get_image_width
 import org.jonnyzzz.png.png_get_io_ptr
+import org.jonnyzzz.png.png_get_rowbytes
+import org.jonnyzzz.png.png_read_image
 import org.jonnyzzz.png.png_read_info
 import org.jonnyzzz.png.png_read_update_info
 import org.jonnyzzz.png.png_set_interlace_handling
@@ -26,12 +34,14 @@ import org.jonnyzzz.png.png_structp
 import org.jonnyzzz.png.png_structpVar
 import org.jonnyzzz.png.png_structrp
 import platform.posix.size_t
+import kotlin.math.max
+import kotlin.math.pow
 
 private interface Deferred {
   fun defer(a: () -> Unit)
 }
 
-private fun <T> withDefer(action: Deferred.() -> T): T {
+private inline fun <T> withDefer(action: Deferred.() -> T): T {
   val actions = mutableListOf<() -> Unit>()
   val def = object : Deferred {
     override fun defer(a: () -> Unit) {
@@ -71,7 +81,7 @@ class PngIOSource(val data: ByteArray) {
 }
 
 
-fun readPng(data: ByteArray) = withDefer {
+fun readPng(data: ByteArray): Image = withDefer {
   /* initialize stuff */
   val png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, null, null, null)
           ?: error("[read_png_file] png_create_read_struct failed")
@@ -90,20 +100,42 @@ fun readPng(data: ByteArray) = withDefer {
   PngIOSource(data).install(png_ptr)
   png_read_info(png_ptr, info_ptr)
 
-  val width = png_get_image_width(png_ptr, info_ptr);
-  val height = png_get_image_height(png_ptr, info_ptr);
-  val color_type = png_get_color_type(png_ptr, info_ptr);
-  val bit_depth = png_get_bit_depth(png_ptr, info_ptr);
+  val width = png_get_image_width(png_ptr, info_ptr)
+  val height = png_get_image_height(png_ptr, info_ptr)
+  val (color_type, pixelSize) = when(val type = png_get_color_type(png_ptr, info_ptr).toInt()) {
+    PNG_COLOR_TYPE_RGB -> "rgb" to 3
+    PNG_COLOR_TYPE_RGBA -> "rgba" to 4
+    else -> "UnknownType($type)" to 0
+  }
+  val bit_depth = png_get_bit_depth(png_ptr, info_ptr)
 
   val number_of_passes = png_set_interlace_handling(png_ptr);
   png_read_update_info(png_ptr, info_ptr)
 
-  println("png-info: $width x $height, $color_type $bit_depth $number_of_passes")
+  println("png-info: ${width}x$height, color-type=$color_type, bits=$bit_depth, phases=$number_of_passes")
 
-/*
-  row_pointers = (png_bytep *) malloc (sizeof(png_bytep) * height);
-  for (y= 0; y < height; y++)
-  row_pointers[y] = (png_byte *) malloc (png_get_rowbytes(png_ptr, info_ptr));
-  png_read_image(png_ptr, row_pointers);
-*/
+  val image = Image(width.toInt(), height.toInt())
+  memScoped {
+    val rowSize = png_get_rowbytes(png_ptr, info_ptr).toInt()
+    println("rowSize=$rowSize")
+
+    val rows = allocArray<png_bytepVar>(height.toLong()) {
+      value = allocArray(rowSize)
+    }
+
+    png_read_image(png_ptr, rows)
+
+    for(y in 0 until height.toInt()) {
+      val row = rows[y]!!
+      for(x in 0 until width.toInt()) {
+        val r = row[pixelSize * x].toUByte()
+        val g = row[pixelSize * x + 1].toUByte()
+        val b = row[pixelSize * x + 2].toUByte()
+
+        image.setPixel(x, y, Color(r,g,b))
+      }
+    }
+  }
+
+  return image
 }
