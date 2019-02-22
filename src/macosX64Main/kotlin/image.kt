@@ -1,5 +1,6 @@
 package org.jonnyzzz.kotlin.mpp.clipboard
 
+import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -40,27 +41,46 @@ class Image(val width: Int,
   fun setPixel(x: Int, y: Int, p: Color) {
     buff[y][x] = p
   }
+
+  fun forEachPixel(ƒ: (Int, Int, Color) -> Unit) {
+    for (y in 0 until height) {
+      for (x in 0 until width) {
+        ƒ(x, y, getPixel(x, y))
+      }
+    }
+  }
 }
 
-private data class LStat(val avd: Double, val min: Double, val max: Double)
-private fun Image.LStat(): LStat {
+data class LStat(val avd: Double,
+                 val min: Double,
+                 val max: Double,
+                 val sigma : Double,
+                 val diff: Double = max - min)
+
+fun Image.LStat(): LStat {
   var agv = 0.0
   var min = 1.0
   var max = 0.0
   var count = 0
 
-  for(y in 0 until height) {
-    for(x in 0 until width) {
-      val it = getPixel(x, y)
-      val L = it.L
-      agv += L
-      min = min(min, L)
-      max = max(max, L)
-      count++
-    }
+  forEachPixel { _, _, it ->
+    val L = it.L
+    agv += L
+    min = min(min, L)
+    max = max(max, L)
+    count++
   }
 
-  return LStat(agv / count, min, max)
+  agv /= count
+  var d = 0.0
+  forEachPixel { _, _, it ->
+    d += (it.L - agv).pow(2)
+  }
+
+  d /= count - 1
+  d = d.pow(0.5)
+
+  return LStat(agv, min, max, d)
 }
 
 
@@ -81,23 +101,34 @@ fun imageToASCII(image: Image) = buildString {
   val L = image.LStat()
   println("averageL = $L")
 
+  if (L.diff <= 1E-2) {
+    appendln("-- empty image")
+    return@buildString
+  }
+
   for (aY in 0 until cH) {
     for (aX in 0 until cW) {
 
       var c = 0.0
-      var pixels = 0
+      var count = 0
       for (x in (0 until xPerDot).map { it + aX * xPerDot }.filter { it < image.width }) {
         for (y in (0 until yPerDot).map { it + aY * yPerDot }.filter { it < image.height }) {
-          c += image.getPixel(x, y).L
-          pixels++
+          c = max(c, (image.getPixel(x, y).L - L.avd).absoluteValue)
+          count++
         }
       }
 
-      c /= pixels
+      /// L is from min..max => L / diff from 0 .. 1
+      /// max | p - L | from  0 .. diff
+      /// =>
+      /// max | p - L | / diff  ==> 0 .. 1
+      val q = c / L.diff
       val ch = when {
-        c >= 0.8 -> 'X'
-        c >= 0.6 -> 'I'
-        c >= 0.4 -> '.'
+        q >= 0.8 -> 'X'
+        q >= 0.6 -> 'I'
+        q >= 0.4 -> '='
+        q >= 0.2 -> '-'
+        q >= 0.1 -> '.'
         else -> ' '
       }
 
