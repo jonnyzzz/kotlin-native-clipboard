@@ -57,8 +57,8 @@ fun Exec.setupZLibEnvironment() {
     val inc = resolve("include")
     "ZLIBINC" env inc
     "ZLIBLIB" env lib
-    "CPPFLAGS" env "-I$inc"
-    "LDFLAGS" env "-L$lib"
+    "CPPFLAGS" env "-I$inc -DPNG_SETJMP_NOT_SUPPORTED -mmacosx-version-min=10.11"
+    "LDFLAGS" env "-L$lib "
   }
 }
 
