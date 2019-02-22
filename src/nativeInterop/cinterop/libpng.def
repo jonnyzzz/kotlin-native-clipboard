@@ -1,2 +1,2 @@
 headers = png.h
-
+compilerOpts = -DPNG_SETJMP_NOT_SUPPORTED

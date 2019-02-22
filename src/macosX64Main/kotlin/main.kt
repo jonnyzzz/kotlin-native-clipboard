@@ -1,10 +1,15 @@
 package org.jonnyzzz.kotlin.mpp.clipboard
 
+import kotlinx.cinterop.ByteVar
+import kotlinx.cinterop.allocArray
+import kotlinx.cinterop.get
+import kotlinx.cinterop.memScoped
 import platform.AppKit.NSPasteboard
 import platform.AppKit.NSPasteboardItem
 import platform.AppKit.NSPasteboardTypePNG
 import platform.AppKit.NSPasteboardTypeString
 import platform.Foundation.base64EncodedStringWithOptions
+import platform.Foundation.getBytes
 import platform.posix.exit
 
 
@@ -34,6 +39,14 @@ fun main() {
     println("ERR: The pasteboard object does not have $pngPasteboardType contents")
     return exit(1)
   }
+
+  val kData = memScoped {
+    val array = allocArray<ByteVar>(data.length.toInt())
+    data.getBytes(array, data.length)
+    ByteArray(data.length.toInt()) { array[it] }
+  }
+
+  readPng(kData)
 
   val base64Data = data.base64EncodedStringWithOptions(0UL)
   val result = "data:application/png;base64,$base64Data"
