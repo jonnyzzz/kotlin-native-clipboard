@@ -36,7 +36,7 @@ fun main() {
   }
 
   val base64Data = data.base64EncodedStringWithOptions(0UL)
-  val result = "data:application/png;base64,$base64Data"
+  val result = "data:image/png;base64,$base64Data"
 
   println("Encoded PNG: ${result.take(40)}...")
 
