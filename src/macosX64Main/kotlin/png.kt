@@ -15,8 +15,6 @@ import kotlinx.cinterop.value
 import org.jonnyzzz.png.PNG_COLOR_TYPE_RGB
 import org.jonnyzzz.png.PNG_COLOR_TYPE_RGBA
 import org.jonnyzzz.png.PNG_LIBPNG_VER_STRING
-import org.jonnyzzz.png.png_byteVar
-import org.jonnyzzz.png.png_bytep
 import org.jonnyzzz.png.png_bytepVar
 import org.jonnyzzz.png.png_create_info_struct
 import org.jonnyzzz.png.png_create_read_struct
@@ -32,15 +30,11 @@ import org.jonnyzzz.png.png_read_info
 import org.jonnyzzz.png.png_read_update_info
 import org.jonnyzzz.png.png_set_interlace_handling
 import org.jonnyzzz.png.png_set_read_fn
-import org.jonnyzzz.png.png_structp
 import org.jonnyzzz.png.png_structpVar
-import org.jonnyzzz.png.png_structrp
-import platform.posix.size_t
-import kotlin.math.max
-import kotlin.math.pow
 
 private interface Deferred {
   fun defer(a: () -> Unit)
+  fun <R> R.deferred(a: R.() -> Unit) : R = apply { defer { a() } }
 }
 
 private inline fun <T> withDefer(action: Deferred.() -> T): T {
@@ -54,31 +48,6 @@ private inline fun <T> withDefer(action: Deferred.() -> T): T {
     return def.action()
   } finally {
     actions.reversed().forEach { it() }
-  }
-}
-
-class PngIOSource(val data: ByteArray) {
-  private val ref = StableRef.create(this)
-  private var off = 0
-
-  fun readNext(size: size_t, to: png_bytep) {
-    var toWrite = size
-    var i = 0
-    while(toWrite-- > 0U) {
-      to[i++] = data[off++].toUByte()
-    }
-  }
-
-  fun install(png_ptr: png_structrp) {
-    png_set_read_fn(png_ptr, ref.asCPointer(), readDataFunction)
-  }
-
-  companion object {
-    private val readDataFunction = staticCFunction<png_structp?, png_bytep?, size_t, Unit> { png_ptr, target, size ->
-      val io_ptr = png_get_io_ptr(png_ptr) ?: return@staticCFunction
-      val reader = io_ptr.asStableRef<PngIOSource>().get()
-      reader.readNext(size, target ?: return@staticCFunction)
-    }
   }
 }
 
@@ -99,19 +68,35 @@ fun readPng(data: ByteArray): Image = withDefer {
 
   val info_ptr = png_create_info_struct(png_ptr) ?: error("[read_png_file] png_create_info_struct failed");
 
-  PngIOSource(data).install(png_ptr)
-  png_read_info(png_ptr, info_ptr)
+  class PngIOSource(val data: ByteArray, var off: Int = 0)
 
+  val ref = StableRef.create(PngIOSource(data))
+                     .deferred { dispose() }
+
+  png_set_read_fn(png_ptr, ref.asCPointer(),
+          staticCFunction F@ { png, target, size ->
+            val c_ptr = png_get_io_ptr(png) ?: return@F
+            val source = c_ptr.asStableRef<PngIOSource>().get()
+            target ?: return@F
+
+            for (i in 0 until size.toInt()) {
+              target[i] = source.data[source.off++].toUByte()
+            }
+          })
+
+  png_read_info(png_ptr, info_ptr)
   val width = png_get_image_width(png_ptr, info_ptr)
   val height = png_get_image_height(png_ptr, info_ptr)
-  val (color_type, pixelSize) = when(val type = png_get_color_type(png_ptr, info_ptr).toInt()) {
+  val type = png_get_color_type(png_ptr, info_ptr).toInt()
+  val bit_depth = png_get_bit_depth(png_ptr, info_ptr)
+  val number_of_passes = png_set_interlace_handling(png_ptr);
+
+  val (color_type, pixelSize) = when(type) {
     PNG_COLOR_TYPE_RGB -> "rgb" to 3
     PNG_COLOR_TYPE_RGBA -> "rgba" to 4
     else -> "UnknownType($type)" to 0
   }
-  val bit_depth = png_get_bit_depth(png_ptr, info_ptr)
 
-  val number_of_passes = png_set_interlace_handling(png_ptr);
   png_read_update_info(png_ptr, info_ptr)
 
   println("png-info: ${width}x$height, color-type=$color_type, bits=$bit_depth, phases=$number_of_passes")
