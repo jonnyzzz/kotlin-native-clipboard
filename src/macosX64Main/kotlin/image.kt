@@ -86,10 +86,10 @@ fun Image.LStat(): LStat {
 
 fun imageToASCII(image: Image) = buildString {
   //https://www.lifewire.com/aspect-ratio-table-common-fonts-3467385
-  val consoleAspectRation = 0.4
+  val consoleAspectRation = 0.43
 
-  val cW = 50
-  val cH = (50 * image.height / image.width * consoleAspectRation).roundToInt()
+  val cW = 70
+  val cH = (cW * image.height / image.width * consoleAspectRation).roundToInt()
 
   println("Rendering image to ${cW}x${cH}...")
 
