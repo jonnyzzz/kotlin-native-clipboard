@@ -1,3 +1,5 @@
+@file:Suppress("LocalVariableName")
+
 package org.jonnyzzz.kotlin.mpp.clipboard
 
 import kotlinx.cinterop.StableRef
