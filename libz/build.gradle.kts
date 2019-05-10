@@ -1,4 +1,5 @@
 import de.undercouch.gradle.tasks.download.Download
+import java.util.*
 
 plugins {
   id("de.undercouch.download") version "3.4.3"
@@ -19,28 +20,38 @@ val download = tasks.create<Download>("libz_download") {
   overwrite(false)
 }
 
-val unpack = tasks.create<Sync>("libz_unpack") {
+val unpack = tasks.create<Copy>("libz_unpack") {
   dependsOn(download)
-  from({ tarTree(resources.gzip(libzSource)) })
-  into(libzUnpacked)
-  includeEmptyDirs = false
-  eachFile {
-    path = path.split("/", limit = 2)[1]
-  }
-  preserve {
-    include(".libs/**")
-    include("**/*.o")
+
+  doFirst { delete(libzUnpacked) }
+
+  inputs.file(libzSource)
+  outputs.file(File(libzUnpacked, "FAQ"))
+
+  doFirst {
+    from({ tarTree(resources.gzip(libzSource)) })
+    into(libzUnpacked)
+
+    includeEmptyDirs = false
+    eachFile {
+      path = path.split("/", limit = 2)[1]
+    }
   }
 }
 
 fun Exec.setupZLibEnvironment() {
-  doFirst {
-    infix fun String.env(value: Any) {
-      environment(this, value.toString())
+  val outputFile = File(buildDir, "task-$name.output")
+  doLast { outputFile.writeText("done ${Date()}")}
+  outputs.file(outputFile)
+  
+  infix fun String.env(value: Any) {
+    doFirst {
+      environment(this@env, value.toString())
     }
-
-    "CPPFLAGS" env "-mmacosx-version-min=10.11"
+    inputs.property(this, value)
   }
+
+  "CPPFLAGS" env "-mmacosx-version-min=10.11"
 }
 
 val configure = tasks.create<Exec>("libz_configure") {
