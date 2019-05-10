@@ -1,4 +1,5 @@
 import de.undercouch.gradle.tasks.download.Download
+import java.util.*
 
 plugins {
   id("de.undercouch.download") version "3.4.3"
@@ -12,26 +13,35 @@ val libpngSource = File(libpngBase, libpngURL.split("/").last())
 val libpngUnpacked = File(libpngBase, libpngURL.split("/").last().removeSuffix(".tar.gz"))
 val libpngPrefix = File(libpngBase, libpngURL.split("/").last().removeSuffix(".tar.gz") + "-bin")
 
-//TODO: download only one platform
 val download = tasks.create<Download>("libpng_download") {
   inputs.property("url", libpngURL)
+  outputs.file(libpngSource)
+
   src(libpngURL)
   dest(libpngSource)
   overwrite(false)
 }
 
-val unpack = tasks.create<Sync>("libpng_unpack") {
+val unpack = tasks.create("libpng_unpack") {
   dependsOn(download)
-  from({ tarTree(resources.gzip(libpngSource)) })
-  into(libpngUnpacked)
-  includeEmptyDirs = false
-  eachFile {
-    path = path.split("/", limit = 2)[1]
-  }
 
-  preserve {
-    include(".libs/**")
-    include("**/*.o")
+  inputs.file(libpngSource)
+  outputs.file(File(libpngUnpacked, "CHANGES"))
+
+  // Copy task incremental check triggers task when unneeded
+  // because of created files during the build
+  doFirst {
+    delete(libpngUnpacked)
+
+    copy {
+      from({ tarTree(resources.gzip(libpngSource)) })
+      into(libpngUnpacked)
+
+      includeEmptyDirs = false
+      eachFile {
+        path = path.split("/", limit = 2)[1]
+      }
+    }
   }
 }
 
@@ -43,6 +53,10 @@ dependencies {
 }
 
 fun Exec.setupZLibEnvironment() {
+  val outputFile = File(buildDir, "task-$name.output")
+  doLast { outputFile.writeText("done ${Date()}")}
+  outputs.file(outputFile)
+
   infix fun String.env(value: () -> Any) {
     inputs.property("ENV-$this", value)
     doFirst {
@@ -64,7 +78,8 @@ fun Exec.setupZLibEnvironment() {
 
   "ZLIBINC" env { inc }
   "ZLIBLIB" env { lib }
-  "CPPFLAGS" env { "-I$inc -DPNG_SETJMP_NOT_SUPPORTED -mmacosx-version-min=10.11 " }
+  "PNG_COPTS" env { "-I$inc -DPNG_SETJMP_NOT_SUPPORTED -mmacosx-version-min=10.11 " }
+  "CPPFLAGS" env { "-I$inc -mmacosx-version-min=10.11 " }
   "LDFLAGS" env { "-L$lib " }
 }
 

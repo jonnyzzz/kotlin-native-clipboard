@@ -15,26 +15,33 @@ val libzPrefix = File(libzBase, libzURL.split("/").last().removeSuffix(".tar.gz"
 
 //TODO: download only one platform
 val download = tasks.create<Download>("libz_download") {
+  inputs.property("url", libzURL)
+  outputs.file(libzSource)
+
   src(libzURL)
   dest(libzSource)
   overwrite(false)
 }
 
-val unpack = tasks.create<Copy>("libz_unpack") {
+val unpack = tasks.create("libz_unpack") {
   dependsOn(download)
-
-  doFirst { delete(libzUnpacked) }
 
   inputs.file(libzSource)
   outputs.file(File(libzUnpacked, "FAQ"))
 
+  // Copy task incremental check triggers task when unneeded
+  // because of created files during the build
   doFirst {
-    from({ tarTree(resources.gzip(libzSource)) })
-    into(libzUnpacked)
+    delete(libzUnpacked)
 
-    includeEmptyDirs = false
-    eachFile {
-      path = path.split("/", limit = 2)[1]
+    copy {
+      from({ tarTree(resources.gzip(libzSource)) })
+      into(libzUnpacked)
+
+      includeEmptyDirs = false
+      eachFile {
+        path = path.split("/", limit = 2)[1]
+      }
     }
   }
 }
@@ -43,7 +50,7 @@ fun Exec.setupZLibEnvironment() {
   val outputFile = File(buildDir, "task-$name.output")
   doLast { outputFile.writeText("done ${Date()}")}
   outputs.file(outputFile)
-  
+
   infix fun String.env(value: Any) {
     doFirst {
       environment(this@env, value.toString())
