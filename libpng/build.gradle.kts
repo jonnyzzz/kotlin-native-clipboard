@@ -4,7 +4,7 @@ plugins {
   id("de.undercouch.download") version "3.4.3"
 }
 
-val libpngVersion = "1.6.36"
+val libpngVersion = "1.6.37"
 val libpngURL = "https://download.sourceforge.net/libpng/libpng-$libpngVersion.tar.gz"
 
 val libpngBase = File(buildDir, "libpng")
@@ -14,6 +14,7 @@ val libpngPrefix = File(libpngBase, libpngURL.split("/").last().removeSuffix(".t
 
 //TODO: download only one platform
 val download = tasks.create<Download>("libpng_download") {
+  inputs.property("url", libpngURL)
   src(libpngURL)
   dest(libpngSource)
   overwrite(false)
@@ -27,6 +28,11 @@ val unpack = tasks.create<Sync>("libpng_unpack") {
   eachFile {
     path = path.split("/", limit = 2)[1]
   }
+
+  preserve {
+    include(".libs/**")
+    include("**/*.o")
+  }
 }
 
 
@@ -37,29 +43,29 @@ dependencies {
 }
 
 fun Exec.setupZLibEnvironment() {
-  doFirst {
-    val zlibRoot = zlib.singleFile
-
-    infix fun String.env(value: Any) {
-      environment(this, value.toString())
+  infix fun String.env(value: () -> Any) {
+    inputs.property("ENV-$this", value)
+    doFirst {
+      environment(this@env, value().toString())
     }
-
-    fun resolve(name: String) : File {
-      val item = File(zlibRoot, name)
-      if (!item.exists()) {
-        error("File $item must exist")
-      }
-      return item
-    }
-
-
-    val lib = resolve("lib")
-    val inc = resolve("include")
-    "ZLIBINC" env inc
-    "ZLIBLIB" env lib
-    "CPPFLAGS" env "-I$inc -DPNG_SETJMP_NOT_SUPPORTED -mmacosx-version-min=10.11"
-    "LDFLAGS" env "-L$lib "
   }
+
+  val zlibRoot by lazy { zlib.singleFile }
+  fun resolve(name: String) = lazy {
+    val item = File(zlibRoot, name)
+    if (!item.exists()) {
+      error("File $item must exist")
+    }
+    item
+  }
+
+  val lib by resolve("lib")
+  val inc by resolve("include")
+
+  "ZLIBINC" env { inc }
+  "ZLIBLIB" env { lib }
+  "CPPFLAGS" env { "-I$inc -DPNG_SETJMP_NOT_SUPPORTED -mmacosx-version-min=10.11 " }
+  "LDFLAGS" env { "-L$lib " }
 }
 
 val configure = tasks.create<Exec>("libpng_configure") {

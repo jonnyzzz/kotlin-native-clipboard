@@ -27,6 +27,10 @@ val unpack = tasks.create<Sync>("libz_unpack") {
   eachFile {
     path = path.split("/", limit = 2)[1]
   }
+  preserve {
+    include(".libs/**")
+    include("**/*.o")
+  }
 }
 
 fun Exec.setupZLibEnvironment() {
