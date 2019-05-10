@@ -1,5 +1,5 @@
 plugins {
-  id("org.jetbrains.kotlin.multiplatform") version "1.3.21"
+  id("org.jetbrains.kotlin.multiplatform") version "1.3.31"
 }
 
 
@@ -26,8 +26,7 @@ kotlin {
 
     compilations.forEach {
       it.kotlinOptions.freeCompilerArgs += listOf(
-              "-Xuse-experimental=kotlin.ExperimentalUnsignedTypes",
-              "-Xverbose-phases=linker"
+              "-Xuse-experimental=kotlin.ExperimentalUnsignedTypes"
       )
     }
 
@@ -40,7 +39,10 @@ kotlin {
 
     binaries {
       executable {
+        linkTask.dependsOn(libz, libpng)
+
         linkTask.doFirst {
+
           linkerOpts("-lpng", "-L${File(libpng.singleFile, "lib")}")
           linkerOpts("-L${File(libz.singleFile, "lib")}")
         }
