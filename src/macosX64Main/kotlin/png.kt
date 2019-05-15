@@ -68,19 +68,18 @@ fun readPng(data: ByteArray): Image = withDefer {
 
   val info_ptr = png_create_info_struct(png_ptr) ?: error("[read_png_file] png_create_info_struct failed");
 
-  class PngIOSource(val data: ByteArray, var off: Int = 0)
+  class PngIOContext(val data: ByteArray, var off: Int = 0)
+  val pngContext = PngIOContext(data)
+  val stableRef = StableRef.create(pngContext).deferred { dispose() }
 
-  val ref = StableRef.create(PngIOSource(data))
-                     .deferred { dispose() }
-
-  png_set_read_fn(png_ptr, ref.asCPointer(),
-          staticCFunction F@ { png, target, size ->
-            val c_ptr = png_get_io_ptr(png) ?: return@F
-            val source = c_ptr.asStableRef<PngIOSource>().get()
-            target ?: return@F
+  png_set_read_fn(png_ptr, stableRef.asCPointer(),
+          staticCFunction { png, target, size ->
+            val c_ptr = png_get_io_ptr(png) ?: error("no context")
+            val ioContext = c_ptr.asStableRef<PngIOContext>().get()
+            target ?: error("target is null")
 
             for (i in 0 until size.toInt()) {
-              target[i] = source.data[source.off++].toUByte()
+              target[i] = ioContext.data[ioContext.off++].toUByte()
             }
           })
 
