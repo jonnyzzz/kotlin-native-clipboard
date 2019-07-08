@@ -29,7 +29,7 @@ There are several version of the tool implemented.
 ### Acknowledgement
 
 We used the 
-master branch](https://github.com/jonnyzzz/kotlin-native-mpp-template/tree/macos-x64)
+[master branch](https://github.com/jonnyzzz/kotlin-native-mpp-template/tree/macos-x64)
 to setup the project faster
 
 ## License
