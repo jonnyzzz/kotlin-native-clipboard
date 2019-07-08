@@ -2,7 +2,7 @@ import de.undercouch.gradle.tasks.download.Download
 import java.util.*
 
 plugins {
-  id("de.undercouch.download") version "3.4.3"
+  id("de.undercouch.download")
 }
 
 val libzVersion = "1.2.11"
