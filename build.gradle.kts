@@ -1,6 +1,7 @@
+
 plugins {
   id("de.undercouch.download") version "3.4.3" apply false
-  kotlin("multiplatform") version "1.3.41"
+  kotlin("multiplatform") version "1.3.50-eap-86"
 }
 
 tasks.withType<Wrapper> {
@@ -8,6 +9,7 @@ tasks.withType<Wrapper> {
 }
 
 repositories {
+  maven(url = "http://dl.bintray.com/kotlin/kotlin-eap")
   mavenCentral()
 }
 
